@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import { createWorker } from 'tesseract.js';
 import { useNavigate } from 'react-router-dom';
 import { Sale } from '../db';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export function NewEntry() {
   const { addSale, sales, loadSales, settings } = useStore();
@@ -76,7 +75,7 @@ export function NewEntry() {
   };
 
   return (
-    <div className="space-y-6 pb-24 max-w-md mx-auto">
+    <div className="space-y-6 pb-24 max-w-md mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between px-2">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-blue-600 font-semibold">
@@ -175,7 +174,7 @@ export function NewEntry() {
               className="w-full pl-8 bg-transparent border-none p-0 text-sm font-semibold focus:ring-0"
             />
             {showDropdown && productSearch && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl border border-slate-100 dark:border-white/5 z-50 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl border border-slate-100 dark:border-white/5 z-50 max-h-48 overflow-y-auto animate-fade-in animate-slide-up">
                 {filteredProducts.map((p, i) => (
                   <div 
                     key={i} 
@@ -194,11 +193,7 @@ export function NewEntry() {
           </div>
 
           {formData.productName && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5"
-            >
+            <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-white/5 animate-fade-in animate-slide-up">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-bold text-lg">{formData.productName}</h3>
@@ -235,7 +230,7 @@ export function NewEntry() {
                   className="w-full bg-slate-50 dark:bg-white/5 border-none rounded-2xl py-4 px-5 text-lg font-bold focus:ring-2 focus:ring-blue-500 transition-all outline-none"
                 />
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </div>
@@ -243,9 +238,9 @@ export function NewEntry() {
       {/* Bill Copy */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-4">Bill Copy</h2>
-        <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-sm border border-slate-100 dark:border-white/5 p-8 flex flex-col items-center justify-center gap-4 border-dashed border-2 border-slate-200 dark:border-white/10">
+        <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-sm border border-slate-100 dark:border-white/5 p-8 flex flex-col items-center justify-center gap-4 border-dashed border-2 border-slate-200 dark:border-white/10 relative">
           {imagePreview ? (
-            <div className="relative w-full aspect-video rounded-2xl overflow-hidden">
+            <div className="relative w-full aspect-video rounded-2xl overflow-hidden animate-fade-in animate-slide-up">
               <img src={imagePreview} alt="Bill" className="w-full h-full object-cover" />
               <button 
                 onClick={() => {setBillImage(null); setImagePreview(null);}}
@@ -263,15 +258,14 @@ export function NewEntry() {
                 <p className="font-bold">Tap to Snap Bill</p>
                 <p className="text-xs text-slate-400 mt-1">or upload from gallery</p>
               </div>
-              <input type="file" accept="image/*" className="hidden" id="bill-upload" onChange={handleImageUpload} />
-              <label htmlFor="bill-upload" className="absolute inset-0 cursor-pointer" />
+              <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" id="bill-upload" onChange={handleImageUpload} />
             </>
           )}
         </div>
       </div>
 
       {/* Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-slate-100 dark:border-white/5 z-50">
+      <div className="fixed bottom-[72px] left-0 right-0 p-4 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-xl border-t border-slate-100 dark:border-white/5 z-40">
         <div className="max-w-md mx-auto flex items-center justify-between gap-4">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Value</span>

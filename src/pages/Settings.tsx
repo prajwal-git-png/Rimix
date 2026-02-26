@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Moon, Sun, Save, Download, Upload, FileText, LogOut, Camera, MapPin, ChevronRight, Shield, Bell, Globe, HelpCircle, User, CreditCard, TrendingUp } from 'lucide-react';
+import { Moon, Sun, Save, Download, Upload, FileText, LogOut, Camera, MapPin, ChevronRight, Shield, Bell, Globe, HelpCircle, User, CreditCard, TrendingUp, Phone, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { dbPromise } from '../db';
 import { format } from 'date-fns';
 import { jsPDF } from 'jspdf';
-import { motion } from 'framer-motion';
 
 export function Settings() {
   const { settings, updateSettings } = useStore();
@@ -17,6 +16,7 @@ export function Settings() {
     brandWebsite: '',
     demoLink: '',
     tollFree: '',
+    aiApiKey: '',
     isLoggedIn: false,
     brandTarget: 500000,
     profilePhoto: '',
@@ -33,7 +33,8 @@ export function Settings() {
   if (!settings) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.type === 'number' ? Number(e.target.value) : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleProfilePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,10 +73,8 @@ export function Settings() {
   };
 
   const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      await updateSettings({ isLoggedIn: false });
-      toast.success('Logged out');
-    }
+    await updateSettings({ isLoggedIn: false });
+    toast.success('Logged out');
   };
 
   const toggleTheme = async () => {
@@ -84,8 +83,20 @@ export function Settings() {
     await updateSettings({ theme: newTheme });
   };
 
+  const handleNotificationClick = () => {
+    toast('Notifications are currently enabled.', { icon: '🔔' });
+  };
+
+  const handlePrivacyClick = () => {
+    toast('Your data is securely stored locally.', { icon: '🛡️' });
+  };
+
+  const handleHelpClick = () => {
+    toast('Please contact support at support@example.com', { icon: '💬' });
+  };
+
   return (
-    <div className="space-y-8 pb-24 max-w-md mx-auto">
+    <div className="space-y-8 pb-24 max-w-md mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between px-2">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -191,10 +202,27 @@ export function Settings() {
                   value={formData.brandWebsite}
                   onChange={handleChange}
                   className="w-full bg-transparent border-none p-0 text-sm font-semibold focus:ring-0" 
+                  placeholder="https://example.com"
                 />
               </div>
             </div>
-            <div className="p-4 flex items-center gap-4">
+            <div className="p-4 flex items-center gap-4 border-b border-slate-50 dark:border-white/5">
+              <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-600">
+                <Phone className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Toll Free Number</p>
+                <input 
+                  type="tel" 
+                  name="tollFree"
+                  value={formData.tollFree}
+                  onChange={handleChange}
+                  className="w-full bg-transparent border-none p-0 text-sm font-semibold focus:ring-0" 
+                  placeholder="1800-XXX-XXXX"
+                />
+              </div>
+            </div>
+            <div className="p-4 flex items-center gap-4 border-b border-slate-50 dark:border-white/5">
               <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600">
                 <TrendingUp className="w-4 h-4" />
               </div>
@@ -209,6 +237,22 @@ export function Settings() {
                 />
               </div>
             </div>
+            <div className="p-4 flex items-center gap-4">
+              <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-600">
+                <Key className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI API Key</p>
+                <input 
+                  type="password" 
+                  name="aiApiKey"
+                  value={formData.aiApiKey}
+                  onChange={handleChange}
+                  className="w-full bg-transparent border-none p-0 text-sm font-semibold focus:ring-0" 
+                  placeholder="Enter API Key"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -216,21 +260,30 @@ export function Settings() {
         <div className="space-y-2">
           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">App Settings</h3>
           <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-sm border border-slate-100 dark:border-white/5 overflow-hidden">
-            <button className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-50 dark:border-white/5">
+            <button 
+              onClick={handleNotificationClick}
+              className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-50 dark:border-white/5"
+            >
               <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300">
                 <Bell className="w-4 h-4" />
               </div>
               <span className="flex-1 text-sm font-bold text-left">Notifications</span>
               <ChevronRight className="w-4 h-4 text-slate-300" />
             </button>
-            <button className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-50 dark:border-white/5">
+            <button 
+              onClick={handlePrivacyClick}
+              className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-50 dark:border-white/5"
+            >
               <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300">
                 <Shield className="w-4 h-4" />
               </div>
               <span className="flex-1 text-sm font-bold text-left">Privacy & Security</span>
               <ChevronRight className="w-4 h-4 text-slate-300" />
             </button>
-            <button className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+            <button 
+              onClick={handleHelpClick}
+              className="w-full p-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+            >
               <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300">
                 <HelpCircle className="w-4 h-4" />
               </div>

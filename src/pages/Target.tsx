@@ -94,7 +94,7 @@ Eol Achive :${formData.eolAchieve}`;
   const weekEnd = endOfWeek(new Date(selectedDate), { weekStartsOn: 1 }); // Sunday
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Store Target</h1>

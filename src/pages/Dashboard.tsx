@@ -5,10 +5,9 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseIS
 import { AddSaleModal } from '../components/AddSaleModal';
 import { Sale } from '../db';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export function Dashboard() {
-  const { settings, sales, loadSales, deleteSale } = useStore();
+  const { settings, sales, loadSales, deleteSale, attendance, loadAttendance, markAttendance } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDayDetailsOpen, setIsDayDetailsOpen] = useState(false);
   const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
@@ -18,7 +17,8 @@ export function Dashboard() {
 
   useEffect(() => {
     loadSales();
-  }, [loadSales]);
+    loadAttendance();
+  }, [loadSales, loadAttendance]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -30,6 +30,13 @@ export function Dashboard() {
       return date >= monthStart && date <= monthEnd;
     });
   }, [sales, monthStart, monthEnd]);
+
+  const mtdAttendance = useMemo(() => {
+    return attendance.filter(a => {
+      const date = parseISO(a.date);
+      return date >= monthStart && date <= monthEnd && a.status === 'Present';
+    });
+  }, [attendance, monthStart, monthEnd]);
 
   const mtdValue = mtdSales.reduce((sum, s) => sum + (s.price * s.quantity), 0);
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -58,8 +65,30 @@ export function Dashboard() {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleDayClick = async (day: Date, hasSales: boolean) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    if (viewMode === 'edit') {
+      const existing = attendance.find(a => a.date === dateStr);
+      if (existing?.status === 'Week Off') {
+        // Remove week off (set to empty or delete, but we'll just set to Present for now, or maybe we need a delete method. Let's just toggle to Leave or something. Actually, let's just mark it as Week Off if not already)
+        toast.error('Already marked as Week Off');
+      } else {
+        await markAttendance({
+          date: dateStr,
+          status: 'Week Off'
+        });
+        toast.success('Marked as Week Off');
+      }
+    } else {
+      setSelectedDate(day);
+      if (hasSales) setIsDayDetailsOpen(true);
+    }
+  };
+
+  const progressPercentage = settings?.brandTarget ? Math.min((mtdValue / settings.brandTarget) * 100, 100) : 0;
+
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 animate-fade-in">
       {/* Header with Month Selector */}
       <div className="flex items-center justify-between px-2">
         <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
@@ -89,14 +118,21 @@ export function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-[#1c1c1e] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 flex flex-col justify-between h-32">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+        <div className="bg-white dark:bg-[#1c1c1e] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 flex flex-col justify-between h-32 relative overflow-hidden">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center relative z-10">
             <Wallet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div>
+          <div className="relative z-10">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">MTD Revenue</p>
             <p className="text-xl font-bold tracking-tight">₹{mtdValue.toLocaleString()}</p>
           </div>
+          {/* Progress Bar Background */}
+          {settings?.brandTarget && (
+            <div 
+              className="absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-1000 ease-out" 
+              style={{ width: `${progressPercentage}%` }}
+            />
+          )}
         </div>
         <div className="bg-white dark:bg-[#1c1c1e] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 flex flex-col justify-between h-32">
           <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
@@ -104,21 +140,21 @@ export function Dashboard() {
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Working Days</p>
-            <p className="text-xl font-bold tracking-tight">22</p>
+            <p className="text-xl font-bold tracking-tight">{mtdAttendance.length}</p>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-sm border border-slate-100 dark:border-white/5 overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>
+      <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-sm border border-slate-100 dark:border-white/5 overflow-hidden p-4">
+        <div className="grid grid-cols-7 mb-2">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+            <div key={i} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-7 gap-1">
           {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-            <div key={`empty-${i}`} className="h-20 border-b border-r border-slate-50 dark:border-white/5 bg-slate-50/20 dark:bg-white/2" />
+            <div key={`empty-${i}`} className="aspect-square rounded-2xl" />
           ))}
           
           {daysInMonth.map((day, i) => {
@@ -131,26 +167,20 @@ export function Dashboard() {
             return (
               <button
                 key={i}
-                onClick={() => {
-                  setSelectedDate(day);
-                  if (hasSales) setIsDayDetailsOpen(true);
-                }}
+                onClick={() => handleDayClick(day, hasSales)}
                 className={`
-                  relative h-20 border-b border-r border-slate-100 dark:border-white/5 flex flex-col items-center justify-between py-2 transition-all
-                  ${isSelected ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'}
+                  aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all
+                  ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' : hasSales ? 'bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20' : 'hover:bg-slate-50 dark:hover:bg-white/5'}
                 `}
               >
-                <span className={`text-xs font-semibold ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                <span className={`text-sm font-bold ${isSelected ? 'text-white' : hasSales ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}>
                   {format(day, 'd')}
                 </span>
-                {hasSales ? (
-                  <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
-                    ₹{(dayValue / 1000).toFixed(1)}k
+                {hasSales && (
+                  <span className={`text-[8px] font-bold mt-0.5 ${isSelected ? 'text-blue-200' : 'text-blue-500 dark:text-blue-300'}`}>
+                    {dayValue >= 1000 ? `${(dayValue / 1000).toFixed(1)}k` : dayValue}
                   </span>
-                ) : (
-                  <span className="text-[9px] font-medium text-slate-300 dark:text-slate-600">-</span>
                 )}
-                {isSelected && <div className="absolute top-1 left-1 w-1 h-1 rounded-full bg-blue-500" />}
               </button>
             );
           })}
@@ -162,40 +192,48 @@ export function Dashboard() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Monthly Trend</p>
-            <h3 className="text-xl font-bold mt-1">+12% <span className="text-sm font-normal text-slate-400">vs last month</span></h3>
+            <h3 className="text-xl font-bold mt-1">
+              ₹{mtdValue.toLocaleString()}
+            </h3>
           </div>
-          <div className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> 12%
-          </div>
-        </div>
-        <div className="h-32 w-full relative">
-          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 40">
-            <path d="M0 35 Q 10 32, 20 25 T 40 20 T 60 15 T 80 25 T 100 10" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-            <path d="M0 35 Q 10 32, 20 25 T 40 20 T 60 15 T 80 25 T 100 10 V 40 H 0 Z" fill="url(#chartGradient)" />
-            <defs>
-              <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="absolute top-4 left-[60%] -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded shadow-lg">
-            ₹2,100
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+          <div className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> MTD
           </div>
         </div>
-        <div className="flex justify-between mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <span>W1</span><span>W2</span><span>W3</span><span>W4</span>
+        
+        {/* Real Weekly Breakdown */}
+        <div className="flex items-end justify-between h-32 gap-2 mt-4">
+          {[1, 2, 3, 4].map(week => {
+            const weekSales = mtdSales.filter(s => {
+              const d = parseISO(s.date).getDate();
+              return d > (week - 1) * 7 && d <= (week === 4 ? 31 : week * 7);
+            }).reduce((sum, s) => sum + (s.price * s.quantity), 0);
+            
+            const maxWeek = Math.max(1, ...[1, 2, 3, 4].map(w => mtdSales.filter(s => {
+              const d = parseISO(s.date).getDate();
+              return d > (w - 1) * 7 && d <= (w === 4 ? 31 : w * 7);
+            }).reduce((sum, s) => sum + (s.price * s.quantity), 0)));
+
+            const height = `${Math.max(10, (weekSales / maxWeek) * 100)}%`;
+
+            return (
+              <div key={week} className="flex-1 flex flex-col items-center gap-2 group">
+                <div className="w-full relative flex-1 flex items-end justify-center">
+                  <div 
+                    className="w-full max-w-[2rem] bg-blue-100 dark:bg-blue-500/20 rounded-t-xl relative transition-all duration-500 group-hover:bg-blue-200 dark:group-hover:bg-blue-500/40"
+                    style={{ height }}
+                  >
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {weekSales >= 1000 ? `${(weekSales/1000).toFixed(1)}k` : weekSales}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">W{week}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* Floating Action Button */}
-      <button 
-        onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-500/40 flex items-center justify-center active:scale-90 transition-transform z-40"
-      >
-        <Plus className="w-8 h-8" />
-      </button>
 
       <AddSaleModal 
         isOpen={isModalOpen} 
@@ -204,66 +242,57 @@ export function Dashboard() {
       />
 
       {/* Day Details Modal */}
-      <AnimatePresence>
-        {isDayDetailsOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm"
-            onClick={() => setIsDayDetailsOpen(false)}
+      {isDayDetailsOpen && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+          onClick={() => setIsDayDetailsOpen(false)}
+        >
+          <div 
+            className="bg-white dark:bg-[#1c1c1e] w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[70vh] animate-slide-up-modal"
+            onClick={e => e.stopPropagation()}
           >
-            <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white dark:bg-[#1c1c1e] w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[70vh]"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold">Sales Details</h2>
-                  <p className="text-sm text-slate-500">{format(selectedDate, 'MMMM d, yyyy')}</p>
-                </div>
-                <button onClick={() => setIsDayDetailsOpen(false)} className="p-2 rounded-full bg-slate-100 dark:bg-white/5">
-                  <X className="w-5 h-5" />
-                </button>
+            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold">Sales Details</h2>
+                <p className="text-sm text-slate-500">{format(selectedDate, 'MMMM d, yyyy')}</p>
               </div>
-              <div className="p-6 overflow-y-auto space-y-4">
-                {todaysSales.map((sale) => (
-                  <div key={sale.id} className="p-4 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 flex flex-col gap-4">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-lg leading-tight">{sale.productName}</h3>
-                        <p className="text-sm text-slate-500">Qty: {sale.quantity} × ₹{sale.price.toLocaleString()}</p>
-                      </div>
-                      <p className="font-bold text-blue-600 dark:text-blue-400 text-lg">
-                        ₹{(sale.quantity * sale.price).toLocaleString()}
-                      </p>
+              <button onClick={() => setIsDayDetailsOpen(false)} className="p-2 rounded-full bg-slate-100 dark:bg-white/5">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-4">
+              {todaysSales.map((sale) => (
+                <div key={sale.id} className="p-4 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 flex flex-col gap-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-lg leading-tight">{sale.productName}</h3>
+                      <p className="text-sm text-slate-500">Qty: {sale.quantity} × ₹{sale.price.toLocaleString()}</p>
                     </div>
-                    
-                    <div className="flex gap-2 pt-2">
-                      <button onClick={() => handleEdit(sale)} className="flex-1 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-semibold flex items-center justify-center gap-2">
-                        <Edit2 className="w-4 h-4" /> Edit
-                      </button>
-                      <button onClick={() => sale.id && handleDelete(sale.id)} className="flex-1 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center justify-center gap-2">
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                    </div>
+                    <p className="font-bold text-blue-600 dark:text-blue-400 text-lg">
+                      ₹{(sale.quantity * sale.price).toLocaleString()}
+                    </p>
                   </div>
-                ))}
-                <button 
-                  onClick={handleShare}
-                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 mt-4"
-                >
-                  <Share2 className="w-5 h-5" /> Share Report
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={() => handleEdit(sale)} className="flex-1 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-semibold flex items-center justify-center gap-2">
+                      <Edit2 className="w-4 h-4" /> Edit
+                    </button>
+                    <button onClick={() => sale.id && handleDelete(sale.id)} className="flex-1 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center justify-center gap-2">
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button 
+                onClick={handleShare}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 mt-4"
+              >
+                <Share2 className="w-5 h-5" /> Share Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
