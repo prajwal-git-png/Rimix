@@ -1,0 +1,8 @@
+{
+  "name": "SalesPro Remix",
+  "description": "A polished, iOS-inspired mobile application for sales professionals with offline support, attendance tracking, and detailed reporting.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
